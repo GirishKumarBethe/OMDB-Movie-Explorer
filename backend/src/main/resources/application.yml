@@ -1,0 +1,10 @@
+server:
+  port: 9090
+
+omdb:
+  base-url: https://www.omdbapi.com
+  api-key: ${https://www.omdbapi.com/}
+
+spring:
+  cache:
+    type: caffeine
