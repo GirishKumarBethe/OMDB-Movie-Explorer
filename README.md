@@ -129,3 +129,5 @@ http://localhost:5173
 
 ## 👨‍💻 Author
 Girishkumar Bethe
+girishkumarbethe2@gmail.com
+https://www.linkedin.com/in/girish-kumar-bethe-14097b1a1/
