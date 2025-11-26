@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/movies")
-@CrossOrigin(origins = "http://localhost:5173") // React dev server (we'll use later)
+@CrossOrigin(origins = "http://localhost:5174") // React dev server (we'll use later)
 public class MovieController {
 
     private final MovieService movieService;

@@ -6,9 +6,12 @@ const FAVORITE_IDS_KEY = "omdb_favorite_ids_v1";
 const FAVORITE_ITEMS_KEY = "omdb_favorite_items_v1";
 const RECENT_KEY = "omdb_recent_v1";
 const THEME_KEY = "omdb_theme_v1";
+const WATCHLIST_IDS_KEY = "omdb_watchlist_ids_v1";
+const WATCHLIST_ITEMS_KEY = "omdb_watchlist_items_v1";
 
 type SortOption = "TITLE_ASC" | "TITLE_DESC" | "YEAR_ASC" | "YEAR_DESC";
 type Theme = "dark" | "light";
+type TypeFilter = "all" | "movie" | "series" | "episode";
 
 function App() {
   const [query, setQuery] = useState("");
@@ -29,11 +32,22 @@ function App() {
   const [recent, setRecent] = useState<MovieSearchItem[]>([]);
   const [theme, setTheme] = useState<Theme>("dark");
 
+  // NEW: filters
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
+  const [yearFrom, setYearFrom] = useState("");
+  const [yearTo, setYearTo] = useState("");
+
+  // NEW: watchlist
+  const [watchlist, setWatchlist] = useState<string[]>([]);
+  const [watchlistItems, setWatchlistItems] = useState<
+    Record<string, MovieSearchItem>
+  >({});
+
   // Derived IMDb rating info for detail view
   const imdbNumeric = selected ? parseFloat(selected.imdbRating) || 0 : 0;
   const imdbPercent = Math.min(100, (imdbNumeric / 10) * 100);
 
-  // Initial load: favorites, favorite items, recent items, theme
+  // Initial load: favorites, favorite items, recent items, theme, watchlist
   useEffect(() => {
     try {
       const storedIds = localStorage.getItem(FAVORITE_IDS_KEY);
@@ -65,6 +79,26 @@ function App() {
       const storedTheme = localStorage.getItem(THEME_KEY) as Theme | null;
       if (storedTheme === "light" || storedTheme === "dark") {
         setTheme(storedTheme);
+      }
+
+      const storedWatchIds = localStorage.getItem(WATCHLIST_IDS_KEY);
+      if (storedWatchIds) {
+        const ids = JSON.parse(storedWatchIds);
+        if (Array.isArray(ids)) {
+          setWatchlist(ids);
+        }
+      }
+
+      const storedWatchItems = localStorage.getItem(WATCHLIST_ITEMS_KEY);
+      if (storedWatchItems) {
+        const itemsArr: MovieSearchItem[] = JSON.parse(storedWatchItems);
+        const map: Record<string, MovieSearchItem> = {};
+        itemsArr.forEach((item) => {
+          if (item.imdbId) {
+            map[item.imdbId] = item;
+          }
+        });
+        setWatchlistItems(map);
       }
     } catch (e) {
       console.warn("Failed to read from localStorage", e);
@@ -119,6 +153,45 @@ function App() {
     });
   };
 
+  // NEW: watchlist helpers
+  const persistWatchlist = (
+    ids: string[],
+    itemsMap: Record<string, MovieSearchItem>
+  ) => {
+    setWatchlist(ids);
+    setWatchlistItems(itemsMap);
+    try {
+      localStorage.setItem(WATCHLIST_IDS_KEY, JSON.stringify(ids));
+      localStorage.setItem(
+        WATCHLIST_ITEMS_KEY,
+        JSON.stringify(Object.values(itemsMap))
+      );
+    } catch (e) {
+      console.warn("Failed to save watchlist", e);
+    }
+  };
+
+  const isInWatchlist = (imdbId: string) => watchlist.includes(imdbId);
+
+  const toggleWatchlist = (movie: MovieSearchItem) => {
+    const imdbId = movie.imdbId;
+    setWatchlist((prevIds) => {
+      const itemsCopy: Record<string, MovieSearchItem> = { ...watchlistItems };
+      let updatedIds: string[];
+
+      if (prevIds.includes(imdbId)) {
+        updatedIds = prevIds.filter((id) => id !== imdbId);
+        delete itemsCopy[imdbId];
+      } else {
+        updatedIds = [...prevIds, imdbId];
+        itemsCopy[imdbId] = movie;
+      }
+
+      persistWatchlist(updatedIds, itemsCopy);
+      return updatedIds;
+    });
+  };
+
   async function loadPage(page: number, searchTerm: string) {
     if (!searchTerm.trim()) return;
 
@@ -165,6 +238,9 @@ function App() {
     setCurrentPage(1);
     setTotalPages(1);
     setShowOnlyFavorites(false);
+    setTypeFilter("all");
+    setYearFrom("");
+    setYearTo("");
   };
 
   const handleNextPage = async () => {
@@ -187,7 +263,8 @@ function App() {
       // Update recently viewed
       const fromResults =
         results.find((m) => m.imdbId === imdbId) ||
-        favoriteItems[imdbId] || {
+        favoriteItems[imdbId] ||
+        watchlistItems[imdbId] || {
           imdbId,
           title: details.title,
           year: details.year,
@@ -215,25 +292,33 @@ function App() {
   // Keyboard shortcuts: ← / → for page, ESC to close detail
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // ignore when typing in input / textarea
       const target = e.target as HTMLElement | null;
-      if (
+      const isTypingTarget =
         target &&
-        (target.tagName === "INPUT" || target.tagName === "TEXTAREA")
-      ) {
+        (target.tagName === "INPUT" || target.tagName === "TEXTAREA");
+
+      // ESC should always close details, even when typing
+      if (e.key === "Escape") {
+        setSelected(null);
         return;
       }
 
-      if (e.key === "ArrowRight") {
-        if (!showOnlyFavorites) {
-          handleNextPage();
-        }
-      } else if (e.key === "ArrowLeft") {
-        if (!showOnlyFavorites) {
-          handlePrevPage();
-        }
-      } else if (e.key === "Escape") {
-        setSelected(null);
+      // For arrows, don't mess with typing in the search box
+      if (isTypingTarget) {
+        return;
+      }
+
+      const trimmedQuery = query.trim();
+      if (!trimmedQuery || showOnlyFavorites) {
+        return;
+      }
+
+      if (e.key === "ArrowRight" && currentPage < totalPages) {
+        e.preventDefault();
+        loadPage(currentPage + 1, trimmedQuery);
+      } else if (e.key === "ArrowLeft" && currentPage > 1) {
+        e.preventDefault();
+        loadPage(currentPage - 1, trimmedQuery);
       }
     };
 
@@ -250,8 +335,28 @@ function App() {
     ? Object.values(favoriteItems)
     : results;
 
+  // Apply filters before sorting
+  const filteredResults = baseResults.filter((movie) => {
+    // type filter
+    if (typeFilter !== "all" && movie.type !== typeFilter) {
+      return false;
+    }
+
+    // year filter
+    const yearNum = parseInt(String(movie.year).slice(0, 4), 10) || 0;
+    if (yearFrom) {
+      const from = parseInt(yearFrom, 10);
+      if (!isNaN(from) && yearNum < from) return false;
+    }
+    if (yearTo) {
+      const to = parseInt(yearTo, 10);
+      if (!isNaN(to) && yearNum > to) return false;
+    }
+    return true;
+  });
+
   // Sorting
-  const sortedResults = [...baseResults].sort((a, b) => {
+  const sortedResults = [...filteredResults].sort((a, b) => {
     const yearA = parseInt(String(a.year).slice(0, 4), 10) || 0;
     const yearB = parseInt(String(b.year).slice(0, 4), 10) || 0;
 
@@ -269,11 +374,18 @@ function App() {
     }
   });
 
+  const filtersActive =
+    typeFilter !== "all" || yearFrom.trim() !== "" || yearTo.trim() !== "";
+
   const emptyMessage = showOnlyFavorites
     ? "No favorites yet. Add some by clicking the star on any movie."
+    : filtersActive
+    ? "No results match the selected filters."
     : query
     ? "No results. Try a different title or spelling."
     : "Start by searching for your favourite movie or series.";
+
+  const watchlistArray = Object.values(watchlistItems);
 
   return (
     <div className="app">
@@ -336,6 +448,40 @@ function App() {
             </select>
           </div>
 
+          {/* Filters */}
+          <div className="filter-row">
+            <div className="filter-group">
+              <label>Type</label>
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value as TypeFilter)}
+              >
+                <option value="all">All</option>
+                <option value="movie">Movies</option>
+                <option value="series">Series</option>
+                <option value="episode">Episodes</option>
+              </select>
+            </div>
+            <div className="filter-group">
+              <label>Year from</label>
+              <input
+                type="number"
+                placeholder="e.g. 2000"
+                value={yearFrom}
+                onChange={(e) => setYearFrom(e.target.value)}
+              />
+            </div>
+            <div className="filter-group">
+              <label>Year to</label>
+              <input
+                type="number"
+                placeholder="e.g. 2024"
+                value={yearTo}
+                onChange={(e) => setYearTo(e.target.value)}
+              />
+            </div>
+          </div>
+
           {loading && <p>Loading...</p>}
 
           {!loading && sortedResults.length === 0 && !error && (
@@ -363,20 +509,36 @@ function App() {
                       <h3>{movie.title}</h3>
                       <p>{movie.year}</p>
                     </div>
-                    <button
-                      type="button"
-                      className={`fav-button ${
-                        isFavorite(movie.imdbId) ? "active" : ""
-                      }`}
-                      onClick={() => toggleFavorite(movie)}
-                      title={
-                        isFavorite(movie.imdbId)
-                          ? "Remove from favorites"
-                          : "Add to favorites"
-                      }
-                    >
-                      ★
-                    </button>
+                    <div className="card-actions">
+                      <button
+                        type="button"
+                        className={`watchlist-button ${
+                          isInWatchlist(movie.imdbId) ? "active" : ""
+                        }`}
+                        onClick={() => toggleWatchlist(movie)}
+                        title={
+                          isInWatchlist(movie.imdbId)
+                            ? "Remove from watchlist"
+                            : "Add to watchlist"
+                        }
+                      >
+                        ⏱
+                      </button>
+                      <button
+                        type="button"
+                        className={`fav-button ${
+                          isFavorite(movie.imdbId) ? "active" : ""
+                        }`}
+                        onClick={() => toggleFavorite(movie)}
+                        title={
+                          isFavorite(movie.imdbId)
+                            ? "Remove from favorites"
+                            : "Add to favorites"
+                        }
+                      >
+                        ★
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -424,6 +586,49 @@ function App() {
               </div>
               <div className="recent-list">
                 {recent.map((m) => (
+                  <div
+                    key={m.imdbId}
+                    className="recent-item"
+                    onClick={() => openDetails(m.imdbId)}
+                  >
+                    {m.poster && m.poster !== "N/A" ? (
+                      <img src={m.poster} alt={m.title} />
+                    ) : (
+                      <div className="recent-placeholder">No Image</div>
+                    )}
+                    <div className="recent-meta">
+                      <div className="recent-title">{m.title}</div>
+                      <div className="recent-year">{m.year}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {watchlistArray.length > 0 && (
+            <div className="watchlist-section">
+              <div className="watchlist-header">
+                <h3>Watchlist</h3>
+                <button
+                  type="button"
+                  className="recent-clear"
+                  onClick={() => {
+                    setWatchlist([]);
+                    setWatchlistItems({});
+                    try {
+                      localStorage.removeItem(WATCHLIST_IDS_KEY);
+                      localStorage.removeItem(WATCHLIST_ITEMS_KEY);
+                    } catch {
+                      // ignore
+                    }
+                  }}
+                >
+                  Clear
+                </button>
+              </div>
+              <div className="watchlist-list">
+                {watchlistArray.map((m) => (
                   <div
                     key={m.imdbId}
                     className="recent-item"

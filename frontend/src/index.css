@@ -546,3 +546,203 @@ body[data-theme="light"] .recent-placeholder {
   background: #e5e7eb;
   color: #6b7280;
 }
+.filter-row {
+  margin-top: 0.35rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.filter-group label {
+  font-size: 0.75rem;
+}
+
+.filter-group input,
+.filter-group select {
+  padding: 0.35rem 0.6rem;
+  border-radius: 0.75rem;
+  border: 1px solid #374151;
+  background: #020617;
+  color: #e5e7eb;
+  font-size: 0.8rem;
+}
+
+body[data-theme="light"] .filter-group input,
+body[data-theme="light"] .filter-group select {
+  background: #f9fafb;
+  border-color: #d1d5db;
+  color: #111827;
+}
+.card-actions {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.watchlist-button {
+  border: none;
+  background: transparent;
+  font-size: 1rem;
+  cursor: pointer;
+  color: #9ca3af;
+  transition: transform 0.12s ease, color 0.12s ease;
+}
+
+.watchlist-button:hover {
+  transform: scale(1.1);
+}
+
+.watchlist-button.active {
+  color: #38bdf8; /* sky blue */
+}
+
+/* Watchlist section */
+.watchlist-section {
+  margin-top: 1.25rem;
+}
+
+.watchlist-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.4rem;
+}
+
+.watchlist-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.watchlist-list {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+body[data-theme="light"] .watchlist-section .recent-item {
+  background: #ffffff;
+  border-color: #e5e7eb;
+}
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #020617;
+  color: #e5e7eb;
+}
+
+.content {
+  display: flex;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  max-width: 1200px;
+  margin: 0;
+}
+
+.results {
+  flex: 2;
+  min-width: 0;
+}
+
+.detail {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Movie grid */
+.grid {
+  margin-top: 1rem;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+}
+/* ========== Responsive Layout ========== */
+
+/* Tablet and small laptop */
+@media (max-width: 900px) {
+  .content {
+    flex-direction: column;
+    padding: 1rem;
+  }
+
+  .results,
+  .detail {
+    width: 100%;
+  }
+
+  .detail {
+    position: static; /* if you were using sticky */
+    margin-top: 1rem;
+  }
+
+  .header {
+    padding: 0.75rem 1rem;
+  }
+}
+
+/* Mobile: phones */
+@media (max-width: 600px) {
+  .header-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .header-right {
+    width: 100%;
+    display: flex;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .search-form {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .search-form input {
+    width: 100%;
+  }
+
+  .search-form button,
+  .clear-btn {
+    width: 100%;
+  }
+
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .card {
+    min-width: 0;
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 400px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .recent-list,
+  .watchlist-list {
+    gap: 0.5rem;
+  }
+
+  .recent-item,
+  .watchlist-list .recent-item {
+    min-width: 100px;
+    max-width: 100px;
+  }
+}
